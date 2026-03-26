@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Git Workflow
 
-After every meaningful change, commit and push:
+**Commit and push after every meaningful unit of work** — completing a feature, fixing a bug, adding a file, or reaching any stable checkpoint. Never leave significant work uncommitted. The goal is that GitHub always reflects the current state of the project so nothing is ever lost.
 
 ```bash
 git add <files>
