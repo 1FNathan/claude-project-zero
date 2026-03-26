@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository
 
-- **Local path:** `Y:/Claude/Project Zero/`
+- **Local path:** `C:/Users/NathanHarris/projects/process-flow/`
 - **GitHub:** https://github.com/1FNathan/claude-project-zero
 - **Branch:** `main`
 
