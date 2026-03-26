@@ -54,8 +54,8 @@ function serializeNode(node: typeof flowNodes.$inferSelect) {
 nodesRouter.post('/', async (req: AuthRequest, res) => {
   const flow = await getFlow(req.params.flowId, req.user!.sub, req.user!.role);
   if (!flow) { res.status(404).json({ error: 'Not found' }); return; }
-  if (req.user!.role === 'ba' && flow.status !== 'draft') {
-    res.status(400).json({ error: 'Can only add nodes to draft flows' }); return;
+  if (req.user!.role === 'ba' && flow.status !== 'draft' && flow.status !== 'rejected') {
+    res.status(400).json({ error: 'Can only add nodes to draft or rejected flows' }); return;
   }
 
   const result = CreateNodeSchema.safeParse(req.body);
@@ -102,8 +102,8 @@ nodesRouter.post('/', async (req: AuthRequest, res) => {
 nodesRouter.patch('/positions', async (req: AuthRequest, res) => {
   const flow = await getFlow(req.params.flowId, req.user!.sub, req.user!.role);
   if (!flow) { res.status(404).json({ error: 'Not found' }); return; }
-  if (req.user!.role === 'ba' && flow.status !== 'draft') {
-    res.status(400).json({ error: 'Can only reposition nodes on draft flows' }); return;
+  if (req.user!.role === 'ba' && flow.status !== 'draft' && flow.status !== 'rejected') {
+    res.status(400).json({ error: 'Can only reposition nodes on draft or rejected flows' }); return;
   }
 
   const result = UpdateNodePositionsSchema.safeParse(req.body);
@@ -122,8 +122,8 @@ nodesRouter.patch('/positions', async (req: AuthRequest, res) => {
 nodesRouter.put('/:nodeId', async (req: AuthRequest, res) => {
   const flow = await getFlow(req.params.flowId, req.user!.sub, req.user!.role);
   if (!flow) { res.status(404).json({ error: 'Not found' }); return; }
-  if (req.user!.role === 'ba' && flow.status !== 'draft') {
-    res.status(400).json({ error: 'Can only edit nodes on draft flows' }); return;
+  if (req.user!.role === 'ba' && flow.status !== 'draft' && flow.status !== 'rejected') {
+    res.status(400).json({ error: 'Can only edit nodes on draft or rejected flows' }); return;
   }
 
   const result = UpdateNodeSchema.safeParse(req.body);
@@ -159,7 +159,7 @@ nodesRouter.put('/:nodeId', async (req: AuthRequest, res) => {
 nodesRouter.delete('/:nodeId', requireRole('ba'), async (req: AuthRequest, res) => {
   const flow = await getFlow(req.params.flowId, req.user!.sub, 'ba');
   if (!flow) { res.status(404).json({ error: 'Not found' }); return; }
-  if (flow.status !== 'draft') { res.status(400).json({ error: 'Can only delete nodes on draft flows' }); return; }
+  if (flow.status !== 'draft' && flow.status !== 'rejected') { res.status(400).json({ error: 'Can only delete nodes on draft or rejected flows' }); return; }
 
   await db.delete(flowNodes).where(
     and(eq(flowNodes.id, req.params.nodeId), eq(flowNodes.flowId, req.params.flowId))

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Node as RFNode, Edge as RFEdge } from 'reactflow';
+import { MarkerType, type Node as RFNode, type Edge as RFEdge } from 'reactflow';
 import type { Flow, FlowNode, FlowEdge, NodeData, NodeType } from '@process-flow/shared';
 import { flowsApi } from '../api/flows';
 
@@ -21,6 +21,8 @@ function toRFEdge(edge: FlowEdge): RFEdge {
     targetHandle: edge.targetHandle ?? undefined,
     label: edge.label ?? undefined,
     type: 'smoothstep',
+    style: { stroke: '#94a3b8', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' },
   };
 }
 

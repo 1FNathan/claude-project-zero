@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { eq } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { db } from '../db/connection.js';
-import { flows, flowNodes, flowEdges } from '../db/schema.js';
+import { flows, flowNodes, flowEdges, flowEvents } from '../db/schema.js';
 import { authenticate, requireRole, type AuthRequest } from '../middleware/auth.js';
 import { CreateFlowSchema, UpdateFlowSchema, CreateFlowReviewSchema } from '@process-flow/shared';
 
@@ -38,6 +38,24 @@ function serializeNode(node: typeof flowNodes.$inferSelect) {
   };
 }
 
+async function recordEvent(
+  flowId: string,
+  eventType: 'created' | 'submitted' | 'approved' | 'rejected' | 'revised',
+  actorId: string,
+  actorUsername: string,
+  notes?: string | null,
+) {
+  await db.insert(flowEvents).values({
+    id: randomUUID(),
+    flowId,
+    eventType,
+    actorId,
+    actorUsername,
+    notes: notes ?? null,
+    createdAt: Date.now(),
+  });
+}
+
 // GET /api/flows
 flowsRouter.get('/', async (req: AuthRequest, res) => {
   const user = req.user!;
@@ -67,7 +85,23 @@ flowsRouter.post('/', requireRole('ba'), async (req: AuthRequest, res) => {
     updatedAt: now,
   };
   await db.insert(flows).values(flow);
+  await recordEvent(flow.id, 'created', req.user!.sub, req.user!.username);
   res.status(201).json(flow);
+});
+
+// GET /api/flows/:id/history  — must come before /:id
+flowsRouter.get('/:id/history', async (req: AuthRequest, res) => {
+  const flow = await db.query.flows.findFirst({ where: eq(flows.id, req.params.id) });
+  if (!flow) { res.status(404).json({ error: 'Not found' }); return; }
+  if (req.user!.role === 'ba' && flow.createdBy !== req.user!.sub) {
+    res.status(403).json({ error: 'Forbidden' }); return;
+  }
+  const events = await db
+    .select()
+    .from(flowEvents)
+    .where(eq(flowEvents.flowId, req.params.id))
+    .orderBy(asc(flowEvents.createdAt));
+  res.json(events);
 });
 
 // GET /api/flows/:id
@@ -82,12 +116,14 @@ flowsRouter.get('/:id', async (req: AuthRequest, res) => {
   res.json({ ...flow, nodes: nodes.map(serializeNode), edges });
 });
 
-// PUT /api/flows/:id
+// PUT /api/flows/:id — BA can edit draft or rejected flows
 flowsRouter.put('/:id', requireRole('ba'), async (req: AuthRequest, res) => {
   const flow = await db.query.flows.findFirst({ where: eq(flows.id, req.params.id) });
   if (!flow) { res.status(404).json({ error: 'Not found' }); return; }
   if (flow.createdBy !== req.user!.sub) { res.status(403).json({ error: 'Forbidden' }); return; }
-  if (flow.status !== 'draft') { res.status(400).json({ error: 'Can only edit draft flows' }); return; }
+  if (flow.status !== 'draft' && flow.status !== 'rejected') {
+    res.status(400).json({ error: 'Can only edit draft or rejected flows' }); return;
+  }
 
   const result = UpdateFlowSchema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: result.error.flatten() }); return; }
@@ -107,15 +143,28 @@ flowsRouter.delete('/:id', requireRole('ba'), async (req: AuthRequest, res) => {
   res.status(204).end();
 });
 
-// POST /api/flows/:id/submit
+// POST /api/flows/:id/submit — BA can submit from draft or rejected (resubmit)
 flowsRouter.post('/:id/submit', requireRole('ba'), async (req: AuthRequest, res) => {
   const flow = await db.query.flows.findFirst({ where: eq(flows.id, req.params.id) });
   if (!flow) { res.status(404).json({ error: 'Not found' }); return; }
   if (flow.createdBy !== req.user!.sub) { res.status(403).json({ error: 'Forbidden' }); return; }
-  if (flow.status !== 'draft') { res.status(400).json({ error: 'Flow must be in draft to submit' }); return; }
+  if (flow.status !== 'draft' && flow.status !== 'rejected') {
+    res.status(400).json({ error: 'Flow must be draft or rejected to submit' }); return;
+  }
 
+  const isRevision = flow.status === 'rejected';
   const updatedAt = Date.now();
+
   await db.update(flows).set({ status: 'in_review', updatedAt }).where(eq(flows.id, req.params.id));
+
+  // Clear node-level review decisions on resubmission for a clean review pass
+  if (isRevision) {
+    await db.update(flowNodes)
+      .set({ reviewDecision: null, reviewComment: null })
+      .where(eq(flowNodes.flowId, req.params.id));
+  }
+
+  await recordEvent(flow.id, isRevision ? 'revised' : 'submitted', req.user!.sub, req.user!.username);
   res.json({ ...flow, status: 'in_review', updatedAt });
 });
 
@@ -136,5 +185,7 @@ flowsRouter.post('/:id/review', requireRole('reviewer'), async (req: AuthRequest
     reviewedBy: req.user!.sub,
     updatedAt,
   }).where(eq(flows.id, req.params.id));
+
+  await recordEvent(flow.id, newStatus, req.user!.sub, req.user!.username, result.data.comment);
   res.json({ ...flow, status: newStatus, updatedAt });
 });

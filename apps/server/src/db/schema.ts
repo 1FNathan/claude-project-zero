@@ -67,3 +67,17 @@ export const flowEdges = sqliteTable('flow_edges', {
   targetHandle: text('target_handle'),
   createdAt: integer('created_at').notNull(),
 });
+
+export const flowEvents = sqliteTable('flow_events', {
+  id: text('id').primaryKey(),
+  flowId: text('flow_id')
+    .notNull()
+    .references(() => flows.id, { onDelete: 'cascade' }),
+  eventType: text('event_type', {
+    enum: ['created', 'submitted', 'approved', 'rejected', 'revised'],
+  }).notNull(),
+  actorId: text('actor_id').notNull(),
+  actorUsername: text('actor_username').notNull(),
+  notes: text('notes'),
+  createdAt: integer('created_at').notNull(),
+});

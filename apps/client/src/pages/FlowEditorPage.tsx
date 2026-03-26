@@ -6,6 +6,8 @@ import ReactFlow, {
   MiniMap,
   useNodesState,
   useEdgesState,
+  MarkerType,
+  ConnectionMode,
   type Connection,
   type NodeTypes,
   type Node as RFNode,
@@ -19,6 +21,7 @@ import type { NodeData, NodeType } from '@process-flow/shared';
 import ProcessNode from '../components/ProcessNode';
 import NodePalette from '../components/NodePalette';
 import NodeDetailPanel from '../components/NodeDetailPanel';
+import FlowHistory from '../components/FlowHistory';
 
 const nodeTypes: NodeTypes = { processNode: ProcessNode };
 
@@ -33,6 +36,12 @@ const statusColor: Record<string, string> = {
   in_review: 'bg-amber-100 text-amber-700',
   approved: 'bg-green-100 text-green-700',
   rejected: 'bg-red-100 text-red-700',
+};
+
+const defaultEdgeOptions = {
+  type: 'smoothstep',
+  style: { stroke: '#94a3b8', strokeWidth: 2 },
+  markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' },
 };
 
 export default function FlowEditorPage() {
@@ -52,6 +61,7 @@ export default function FlowEditorPage() {
   const [reviewDecision, setReviewDecision] = useState<'approved' | 'rejected'>('approved');
   const [reviewComment, setReviewComment] = useState('');
   const [showExport, setShowExport] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
@@ -61,8 +71,18 @@ export default function FlowEditorPage() {
     return () => reset();
   }, [id]);
 
-  // Sync store → RF state
-  useEffect(() => { setNodes(rfNodes); }, [rfNodes]);
+  // Sync store → RF state, preserving current positions of existing nodes
+  // so that adding a new node doesn't reposition previously placed nodes.
+  useEffect(() => {
+    setNodes(current => {
+      const byId = new Map(current.map(n => [n.id, n]));
+      return rfNodes.map(n => {
+        const existing = byId.get(n.id);
+        return existing ? { ...n, position: existing.position } : n;
+      });
+    });
+  }, [rfNodes]);
+
   useEffect(() => { setEdges(rfEdges); }, [rfEdges]);
 
   const onConnect = useCallback((connection: Connection) => {
@@ -128,6 +148,8 @@ export default function FlowEditorPage() {
   };
 
   const isDraft = flow?.status === 'draft';
+  const isRejected = flow?.status === 'rejected';
+  const isEditable = isDraft || isRejected;
   const isInReview = flow?.status === 'in_review';
   const isBA = user?.role === 'ba';
   const isReviewer = user?.role === 'reviewer';
@@ -159,6 +181,18 @@ export default function FlowEditorPage() {
         </span>
 
         <div className="flex items-center gap-2">
+          {/* History */}
+          <button
+            onClick={() => setShowHistory(v => !v)}
+            className={`text-sm border rounded-lg px-3 py-1.5 ${
+              showHistory
+                ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                : 'text-gray-600 border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            History
+          </button>
+
           {/* Export */}
           <div className="relative">
             <button
@@ -186,13 +220,13 @@ export default function FlowEditorPage() {
             )}
           </div>
 
-          {/* BA: submit for review */}
-          {isBA && isDraft && (
+          {/* BA: submit / resubmit */}
+          {isBA && isEditable && (
             <button
               onClick={handleSubmit}
               className="bg-amber-500 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-amber-600"
             >
-              Submit for Review
+              {isRejected ? 'Resubmit for Review' : 'Submit for Review'}
             </button>
           )}
 
@@ -210,8 +244,8 @@ export default function FlowEditorPage() {
 
       {/* Main area */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Node palette — only show for BA on draft */}
-        {isBA && isDraft && <NodePalette />}
+        {/* Node palette — BA on editable flows */}
+        {isBA && isEditable && <NodePalette />}
 
         {/* ReactFlow canvas */}
         <div ref={reactFlowWrapper} className="flex-1 relative">
@@ -230,17 +264,18 @@ export default function FlowEditorPage() {
             onDrop={onDrop}
             onInit={instance => setRfInstance(instance)}
             nodeTypes={nodeTypes}
+            connectionMode={ConnectionMode.Loose}
             fitView
             deleteKeyCode="Delete"
             connectionLineStyle={{ stroke: '#94a3b8', strokeWidth: 2 }}
-            defaultEdgeOptions={{ type: 'smoothstep', style: { stroke: '#94a3b8', strokeWidth: 2 } }}
+            defaultEdgeOptions={defaultEdgeOptions}
           >
             <Background color="#e2e8f0" />
             <Controls />
             <MiniMap nodeColor={n => (n.data as NodeData)?.color ?? '#6366f1'} />
           </ReactFlow>
 
-          {isBA && isDraft && nodes.length === 0 && (
+          {isBA && isEditable && nodes.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <p className="text-gray-400 text-sm">Drag node types from the left panel onto the canvas</p>
             </div>
@@ -254,6 +289,11 @@ export default function FlowEditorPage() {
             nodeId={selectedNodeId}
             onClose={() => setSelectedNode(null)}
           />
+        )}
+
+        {/* History panel */}
+        {showHistory && (
+          <FlowHistory flowId={flow.id} onClose={() => setShowHistory(false)} />
         )}
       </div>
 

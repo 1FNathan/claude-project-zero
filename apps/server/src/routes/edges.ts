@@ -9,7 +9,7 @@ import { CreateEdgeSchema, UpdateEdgeSchema } from '@process-flow/shared';
 export const edgesRouter = Router({ mergeParams: true });
 edgesRouter.use(authenticate);
 
-async function getDraftFlow(flowId: string, userId: string) {
+async function getEditableFlow(flowId: string, userId: string) {
   const flow = await db.query.flows.findFirst({ where: eq(flows.id, flowId) });
   if (!flow || flow.createdBy !== userId) return null;
   return flow;
@@ -17,9 +17,9 @@ async function getDraftFlow(flowId: string, userId: string) {
 
 // POST /api/flows/:flowId/edges
 edgesRouter.post('/', requireRole('ba'), async (req: AuthRequest, res) => {
-  const flow = await getDraftFlow(req.params.flowId, req.user!.sub);
+  const flow = await getEditableFlow(req.params.flowId, req.user!.sub);
   if (!flow) { res.status(404).json({ error: 'Not found' }); return; }
-  if (flow.status !== 'draft') { res.status(400).json({ error: 'Can only add edges to draft flows' }); return; }
+  if (flow.status !== 'draft' && flow.status !== 'rejected') { res.status(400).json({ error: 'Can only add edges to draft or rejected flows' }); return; }
 
   const result = CreateEdgeSchema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: result.error.flatten() }); return; }
@@ -43,9 +43,9 @@ edgesRouter.post('/', requireRole('ba'), async (req: AuthRequest, res) => {
 
 // PUT /api/flows/:flowId/edges/:edgeId
 edgesRouter.put('/:edgeId', requireRole('ba'), async (req: AuthRequest, res) => {
-  const flow = await getDraftFlow(req.params.flowId, req.user!.sub);
+  const flow = await getEditableFlow(req.params.flowId, req.user!.sub);
   if (!flow) { res.status(404).json({ error: 'Not found' }); return; }
-  if (flow.status !== 'draft') { res.status(400).json({ error: 'Can only edit edges on draft flows' }); return; }
+  if (flow.status !== 'draft' && flow.status !== 'rejected') { res.status(400).json({ error: 'Can only edit edges on draft or rejected flows' }); return; }
 
   const result = UpdateEdgeSchema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: result.error.flatten() }); return; }
@@ -58,9 +58,9 @@ edgesRouter.put('/:edgeId', requireRole('ba'), async (req: AuthRequest, res) => 
 
 // DELETE /api/flows/:flowId/edges/:edgeId
 edgesRouter.delete('/:edgeId', requireRole('ba'), async (req: AuthRequest, res) => {
-  const flow = await getDraftFlow(req.params.flowId, req.user!.sub);
+  const flow = await getEditableFlow(req.params.flowId, req.user!.sub);
   if (!flow) { res.status(404).json({ error: 'Not found' }); return; }
-  if (flow.status !== 'draft') { res.status(400).json({ error: 'Can only delete edges on draft flows' }); return; }
+  if (flow.status !== 'draft' && flow.status !== 'rejected') { res.status(400).json({ error: 'Can only delete edges on draft or rejected flows' }); return; }
 
   await db.delete(flowEdges).where(
     and(eq(flowEdges.id, req.params.edgeId), eq(flowEdges.flowId, req.params.flowId))

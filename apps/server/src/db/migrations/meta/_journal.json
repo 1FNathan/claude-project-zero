@@ -1,0 +1,20 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1774561691933,
+      "tag": "0000_ancient_magus",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1774563317137,
+      "tag": "0001_married_the_liberteens",
+      "breakpoints": true
+    }
+  ]
+}

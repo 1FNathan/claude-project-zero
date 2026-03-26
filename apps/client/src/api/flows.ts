@@ -3,6 +3,7 @@ import type {
   Flow,
   FlowNode,
   FlowEdge,
+  FlowEvent,
   CreateFlowInput,
   UpdateFlowInput,
   CreateNodeInput,
@@ -39,6 +40,8 @@ export const flowsApi = {
   updateEdge: (flowId: string, edgeId: string, label: string) =>
     api.put(`flows/${flowId}/edges/${edgeId}`, { json: { label } }).json<{ ok: boolean }>(),
   deleteEdge: (flowId: string, edgeId: string) => api.delete(`flows/${flowId}/edges/${edgeId}`),
+
+  history: (flowId: string) => api.get(`flows/${flowId}/history`).json<FlowEvent[]>(),
 
   exportUrl: (flowId: string, format: DocumentFormat, type: DocumentType) =>
     `/api/flows/${flowId}/export?format=${format}&type=${type}`,

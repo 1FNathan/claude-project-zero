@@ -70,3 +70,13 @@ export interface TokenPayload {
   username: string;
   role: import('./roles.js').Role;
 }
+
+export interface FlowEvent {
+  id: string;
+  flowId: string;
+  eventType: 'created' | 'submitted' | 'approved' | 'rejected' | 'revised';
+  actorId: string;
+  actorUsername: string;
+  notes?: string | null;
+  createdAt: number;
+}
