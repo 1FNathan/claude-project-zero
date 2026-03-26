@@ -9,6 +9,7 @@ function toRFNode(node: FlowNode): RFNode<NodeData> {
     type: 'processNode',
     position: { x: node.positionX, y: node.positionY },
     data: node.data,
+    ...(node.width && node.height ? { style: { width: node.width, height: node.height } } : {}),
   };
 }
 
@@ -27,11 +28,11 @@ function toRFEdge(edge: FlowEdge): RFEdge {
 }
 
 const nodeTypeColors: Record<NodeType, string> = {
-  process: '#6366f1',
-  decision: '#f59e0b',
-  delay: '#8b5cf6',
-  start: '#10b981',
-  end: '#ef4444',
+  process: '#9ca3af',
+  decision: '#9ca3af',
+  delay: '#9ca3af',
+  start: '#9ca3af',
+  end: '#9ca3af',
 };
 
 interface FlowState {
@@ -50,6 +51,7 @@ interface FlowState {
   addNode: (flowId: string, nodeType: NodeType, position: { x: number; y: number }) => Promise<void>;
   updateNode: (flowId: string, nodeId: string, data: Partial<NodeData>) => Promise<void>;
   updatePositions: (flowId: string, positions: Array<{ id: string; positionX: number; positionY: number }>) => Promise<void>;
+  updateNodeDimensions: (flowId: string, nodeId: string, width: number, height: number) => Promise<void>;
   deleteNode: (flowId: string, nodeId: string) => Promise<void>;
   addEdge: (flowId: string, connection: { source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null }) => Promise<void>;
   deleteEdge: (flowId: string, edgeId: string) => Promise<void>;
@@ -109,6 +111,18 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
   updatePositions: async (flowId, positions) => {
     await flowsApi.updatePositions(flowId, positions);
+  },
+
+  updateNodeDimensions: async (flowId, nodeId, width, height) => {
+    const node = get().rfNodes.find(n => n.id === nodeId);
+    if (!node) return;
+    await flowsApi.updatePositions(flowId, [{
+      id: nodeId,
+      positionX: node.position.x,
+      positionY: node.position.y,
+      width,
+      height,
+    }]);
   },
 
   deleteNode: async (flowId, nodeId) => {

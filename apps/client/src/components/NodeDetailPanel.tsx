@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { NodeData, DataField } from '@process-flow/shared';
+import type { NodeData, DataField, BusinessRule } from '@process-flow/shared';
 import { useFlowStore } from '../store/flow';
 import { useAuthStore } from '../store/auth';
 
@@ -23,6 +23,7 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
   const [reviewComment, setReviewComment] = useState('');
   const [newSystem, setNewSystem] = useState('');
   const [newDoc, setNewDoc] = useState('');
+  const [newRule, setNewRule] = useState('');
 
   useEffect(() => {
     if (node) setForm({ ...node.data });
@@ -88,6 +89,31 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
     setNewDoc('');
   };
 
+  const addRule = () => {
+    if (!newRule.trim()) return;
+    const rules = form.businessRules ?? [];
+    const brNum = rules.length + 1;
+    const brId = `${node.data.stepId}.BR${brNum}`;
+    set('businessRules', [...rules, { id: brId, text: newRule.trim() }]);
+    setNewRule('');
+  };
+
+  const removeRule = (idx: number) => {
+    const rules = (form.businessRules ?? []).filter((_, i) => i !== idx);
+    // Re-number IDs after removal so they stay sequential
+    const reNumbered: BusinessRule[] = rules.map((r, i) => ({
+      ...r,
+      id: `${node.data.stepId}.BR${i + 1}`,
+    }));
+    set('businessRules', reNumbered);
+  };
+
+  const updateRuleText = (idx: number, text: string) => {
+    const rules = [...(form.businessRules ?? [])];
+    rules[idx] = { ...rules[idx], text };
+    set('businessRules', rules);
+  };
+
   return (
     <div className="w-80 bg-white border-l border-gray-200 flex flex-col shrink-0 overflow-y-auto">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 sticky top-0 bg-white z-10">
@@ -111,14 +137,41 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
                 className={inputCls} placeholder="Who performs this step?" />
             </Field>
 
+            <Field label="Process Status">
+              <input value={form.processStatus ?? ''} onChange={e => set('processStatus', e.target.value)}
+                className={inputCls} placeholder="e.g. In Progress" />
+            </Field>
+
+            <Field label="Process Sub-status">
+              <input value={form.processSubstatus ?? ''} onChange={e => set('processSubstatus', e.target.value)}
+                className={inputCls} placeholder="e.g. Pending Approval" />
+            </Field>
+
             <Field label="Action Description">
               <textarea value={form.actionDescription ?? ''} onChange={e => set('actionDescription', e.target.value)}
                 className={`${inputCls} h-20 resize-none`} placeholder="What happens in this step?" />
             </Field>
 
             <Field label="Business Rules">
-              <textarea value={form.businessRules ?? ''} onChange={e => set('businessRules', e.target.value)}
-                className={`${inputCls} h-20 resize-none`} placeholder="Rules and conditions that apply" />
+              <div className="space-y-1 mb-1">
+                {(form.businessRules ?? []).map((br, i) => (
+                  <div key={br.id} className="flex items-start gap-1.5 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1.5">
+                    <span className="text-xs font-mono text-amber-600 shrink-0 mt-0.5 min-w-[48px]">{br.id}</span>
+                    <input
+                      value={br.text}
+                      onChange={e => updateRuleText(i, e.target.value)}
+                      className="text-xs text-gray-700 flex-1 bg-transparent border-none outline-none focus:ring-0 p-0"
+                    />
+                    <button onClick={() => removeRule(i)} className="text-gray-400 hover:text-red-500 shrink-0 text-sm leading-none">×</button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-1">
+                <input value={newRule} onChange={e => setNewRule(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addRule())}
+                  className={`${inputCls} flex-1`} placeholder="Add business rule..." />
+                <button onClick={addRule} className="px-2 py-1 bg-gray-100 rounded-lg text-xs hover:bg-gray-200">Add</button>
+              </div>
             </Field>
 
             <Field label="Timing Constraints">
@@ -203,20 +256,35 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
         {!canEdit && (
           <div className="space-y-3 text-gray-700">
             {[
-              ['Label',          node.data.pithyLabel],
-              ['Actor',          node.data.actor],
-              ['Action',         node.data.actionDescription],
-              ['Business Rules', node.data.businessRules],
-              ['Timing',         node.data.timingConstraints],
-              ['Next Actor',     node.data.nextActor || derivedNextActor],
-              ['Systems',        node.data.systemsUsed?.join(', ')],
-              ['Documents',      node.data.documentsUsed?.join(', ')],
+              ['Label',            node.data.pithyLabel],
+              ['Actor',            node.data.actor],
+              ['Process Status',   node.data.processStatus],
+              ['Process Sub-status', node.data.processSubstatus],
+              ['Action',           node.data.actionDescription],
+              ['Timing',           node.data.timingConstraints],
+              ['Next Actor',       node.data.nextActor || derivedNextActor],
+              ['Systems',          node.data.systemsUsed?.join(', ')],
+              ['Documents',        node.data.documentsUsed?.join(', ')],
             ].map(([label, value]) => value ? (
               <div key={label as string}>
                 <p className="text-xs font-medium text-gray-400">{label}</p>
                 <p className="text-sm">{value}</p>
               </div>
             ) : null)}
+
+            {node.data.businessRules?.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-gray-400 mb-1">Business Rules</p>
+                <div className="space-y-1">
+                  {node.data.businessRules.map(br => (
+                    <div key={br.id} className="flex gap-1.5 bg-amber-50 rounded px-2 py-1 text-xs">
+                      <span className="font-mono text-amber-600 shrink-0">{br.id}</span>
+                      <span className="text-gray-700">{br.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {node.data.dataFields?.length > 0 && (
               <div>

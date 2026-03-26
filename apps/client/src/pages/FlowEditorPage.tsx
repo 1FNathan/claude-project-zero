@@ -73,14 +73,14 @@ export default function FlowEditorPage() {
     return () => reset();
   }, [id]);
 
-  // Sync store → RF state, preserving current positions of existing nodes
-  // so that adding a new node doesn't reposition previously placed nodes.
+  // Sync store → RF state, preserving current position and style (resize dimensions)
+  // of existing nodes so that adding a new node doesn't reposition or un-resize others.
   useEffect(() => {
     setNodes(current => {
       const byId = new Map(current.map(n => [n.id, n]));
       return rfNodes.map(n => {
         const existing = byId.get(n.id);
-        return existing ? { ...n, position: existing.position } : n;
+        return existing ? { ...n, position: existing.position, style: existing.style } : n;
       });
     });
   }, [rfNodes]);

@@ -29,7 +29,7 @@ export const flowsApi = {
     api.post(`flows/${flowId}/nodes`, { json: data }).json<FlowNode>(),
   updateNode: (flowId: string, nodeId: string, data: UpdateNodeInput) =>
     api.put(`flows/${flowId}/nodes/${nodeId}`, { json: data }).json<FlowNode>(),
-  updatePositions: (flowId: string, positions: Array<{ id: string; positionX: number; positionY: number }>) =>
+  updatePositions: (flowId: string, positions: Array<{ id: string; positionX: number; positionY: number; width?: number; height?: number }>) =>
     api.patch(`flows/${flowId}/nodes/positions`, { json: positions }).json<{ ok: boolean }>(),
   deleteNode: (flowId: string, nodeId: string) => api.delete(`flows/${flowId}/nodes/${nodeId}`),
   reviewNode: (flowId: string, nodeId: string, data: CreateReviewInput) =>
