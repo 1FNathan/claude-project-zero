@@ -1,6 +1,6 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+import { createClient } from '@libsql/client';
+import { drizzle } from 'drizzle-orm/libsql';
+import { migrate } from 'drizzle-orm/libsql/migrator';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -13,9 +13,9 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const sqlite = new Database(dbPath);
-const db = drizzle(sqlite);
+const client = createClient({ url: `file:${dbPath}` });
+const db = drizzle(client);
 
 await migrate(db, { migrationsFolder: path.resolve(__dirname, './migrations') });
 console.log('Migration complete');
-sqlite.close();
+await client.close();
