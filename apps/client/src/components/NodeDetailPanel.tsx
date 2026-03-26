@@ -15,7 +15,7 @@ interface Props {
 
 export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
   const user = useAuthStore(s => s.user);
-  const { rfNodes, flow, updateNode, reviewNode } = useFlowStore();
+  const { rfNodes, rfEdges, flow, updateNode, reviewNode } = useFlowStore();
   const node = rfNodes.find(n => n.id === nodeId);
 
   const [form, setForm] = useState<Partial<NodeData>>({});
@@ -30,12 +30,20 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
 
   if (!node || !flow) return null;
 
-  const isDraft = flow.status === 'draft';
+  const isEditable = flow.status === 'draft' || flow.status === 'rejected';
   const isInReview = flow.status === 'in_review';
   const isBA = user?.role === 'ba';
   const isReviewer = user?.role === 'reviewer';
-  const canEdit = isBA && isDraft;
+  const canEdit = isBA && isEditable;
   const canReview = isReviewer && isInReview;
+
+  // Derive next actor from outgoing edges — not manually editable
+  const derivedNextActor = rfEdges
+    .filter(e => e.source === nodeId)
+    .map(e => rfNodes.find(n => n.id === e.target)?.data.actor)
+    .filter((a): a is string => Boolean(a))
+    .filter((v, i, arr) => arr.indexOf(v) === i)
+    .join(', ');
 
   const set = (key: keyof NodeData, value: unknown) =>
     setForm(f => ({ ...f, [key]: value }));
@@ -43,7 +51,7 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateNode(flowId, nodeId, form as Partial<NodeData>);
+      await updateNode(flowId, nodeId, { ...form, nextActor: derivedNextActor } as Partial<NodeData>);
     } finally {
       setSaving(false);
     }
@@ -119,8 +127,9 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
             </Field>
 
             <Field label="Next Actor">
-              <input value={form.nextActor ?? ''} onChange={e => set('nextActor', e.target.value)}
-                className={inputCls} placeholder="Who receives the output?" />
+              <div className={`${inputCls} bg-gray-50 text-gray-500 cursor-default`}>
+                {derivedNextActor || <span className="italic text-gray-400">Determined by connected node's actor</span>}
+              </div>
             </Field>
 
             <Field label="Systems Used">
@@ -194,14 +203,14 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
         {!canEdit && (
           <div className="space-y-3 text-gray-700">
             {[
-              ['Label', node.data.pithyLabel],
-              ['Actor', node.data.actor],
-              ['Action', node.data.actionDescription],
+              ['Label',          node.data.pithyLabel],
+              ['Actor',          node.data.actor],
+              ['Action',         node.data.actionDescription],
               ['Business Rules', node.data.businessRules],
-              ['Timing', node.data.timingConstraints],
-              ['Next Actor', node.data.nextActor],
-              ['Systems', node.data.systemsUsed?.join(', ')],
-              ['Documents', node.data.documentsUsed?.join(', ')],
+              ['Timing',         node.data.timingConstraints],
+              ['Next Actor',     node.data.nextActor || derivedNextActor],
+              ['Systems',        node.data.systemsUsed?.join(', ')],
+              ['Documents',      node.data.documentsUsed?.join(', ')],
             ].map(([label, value]) => value ? (
               <div key={label as string}>
                 <p className="text-xs font-medium text-gray-400">{label}</p>

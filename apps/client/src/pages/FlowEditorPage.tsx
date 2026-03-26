@@ -13,6 +13,7 @@ import ReactFlow, {
   type Node as RFNode,
   type Edge as RFEdge,
   type ReactFlowInstance,
+  type OnEdgeUpdateFunc,
 } from 'reactflow';
 import { useFlowStore } from '../store/flow';
 import { useAuthStore } from '../store/auth';
@@ -65,6 +66,7 @@ export default function FlowEditorPage() {
 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
+  const edgeUpdateSuccessful = useRef(true);
 
   useEffect(() => {
     if (id) loadFlow(id);
@@ -111,6 +113,29 @@ export default function FlowEditorPage() {
   const onEdgesDelete = useCallback((deleted: RFEdge[]) => {
     if (!id) return;
     deleted.forEach(e => deleteEdge(id, e.id));
+  }, [id, deleteEdge]);
+
+  const onEdgeUpdateStart = useCallback(() => {
+    edgeUpdateSuccessful.current = false;
+  }, []);
+
+  const onEdgeUpdate: OnEdgeUpdateFunc = useCallback(async (oldEdge, newConnection) => {
+    edgeUpdateSuccessful.current = true;
+    if (!id || !newConnection.source || !newConnection.target) return;
+    await deleteEdge(id, oldEdge.id);
+    await addEdge(id, {
+      source: newConnection.source,
+      target: newConnection.target,
+      sourceHandle: newConnection.sourceHandle,
+      targetHandle: newConnection.targetHandle,
+    });
+  }, [id, deleteEdge, addEdge]);
+
+  const onEdgeUpdateEnd = useCallback((_: unknown, edge: RFEdge) => {
+    if (!edgeUpdateSuccessful.current && id) {
+      deleteEdge(id, edge.id);
+    }
+    edgeUpdateSuccessful.current = true;
   }, [id, deleteEdge]);
 
   const onNodesDelete = useCallback((deleted: RFNode[]) => {
@@ -260,6 +285,9 @@ export default function FlowEditorPage() {
             onPaneClick={onPaneClick}
             onEdgesDelete={onEdgesDelete}
             onNodesDelete={onNodesDelete}
+            onEdgeUpdate={isEditable ? onEdgeUpdate : undefined}
+            onEdgeUpdateStart={isEditable ? onEdgeUpdateStart : undefined}
+            onEdgeUpdateEnd={isEditable ? onEdgeUpdateEnd : undefined}
             onDragOver={onDragOver}
             onDrop={onDrop}
             onInit={instance => setRfInstance(instance)}

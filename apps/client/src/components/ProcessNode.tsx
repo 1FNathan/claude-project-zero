@@ -11,7 +11,6 @@ const typeLabel: Record<string, string> = {
 };
 
 // Diamond: 150×150 container, inner square = 150/√2 ≈ 106 rotated 45°
-// The rotated square's corners land exactly at the center of each container side → handle tips
 const DIAMOND = 150;
 const DIAMOND_INNER = Math.round(DIAMOND / Math.SQRT2);
 
@@ -19,25 +18,28 @@ const hCls = '!w-3 !h-3 !bg-gray-300 !border-gray-400 !border-2';
 const hYes = '!w-3 !h-3 !bg-green-200 !border-green-500 !border-2';
 const hNo  = '!w-3 !h-3 !bg-red-200  !border-red-400  !border-2';
 
-function Handles({ yes = false }: { yes?: boolean }) {
+function Handles({ decision = false }: { decision?: boolean }) {
   return (
     <>
       <Handle type="source" position={Position.Top}    id="top"    className={hCls} />
-      <Handle type="source" position={Position.Right}  id="right"  className={yes ? hYes : hCls} />
+      <Handle type="source" position={Position.Right}  id="right"  className={decision ? hYes : hCls} />
       <Handle type="source" position={Position.Bottom} id="bottom" className={hCls} />
-      <Handle type="source" position={Position.Left}   id="left"   className={yes ? hNo  : hCls} />
+      <Handle type="source" position={Position.Left}   id="left"   className={decision ? hNo  : hCls} />
     </>
   );
 }
 
+/** Border color driven by review decision when set, otherwise the node's own color. */
+function effectiveBorder(data: NodeData): string {
+  if (data.reviewDecision === 'approved') return '#10b981';
+  if (data.reviewDecision === 'rejected') return '#ef4444';
+  if (data.reviewDecision === 'comment')  return '#f59e0b';
+  return data.color;
+}
+
 export default memo(function ProcessNode({ data, selected }: NodeProps<NodeData>) {
-  const { nodeType, color, pithyLabel, stepId, actor, reviewDecision } = data;
-
-  const reviewColor =
-    reviewDecision === 'approved' ? 'text-green-600' :
-    reviewDecision === 'rejected' ? 'text-red-600'   :
-    reviewDecision === 'comment'  ? 'text-amber-600' : '';
-
+  const { nodeType, color, pithyLabel, stepId, actor } = data;
+  const border = effectiveBorder(data);
   const selCls = selected ? 'ring-2 ring-indigo-400 ring-offset-1' : '';
 
   const typeTag = (
@@ -59,10 +61,6 @@ export default memo(function ProcessNode({ data, selected }: NodeProps<NodeData>
     ? <div className="text-xs text-gray-500 mt-0.5 truncate">{actor}</div>
     : null;
 
-  const reviewEl = reviewDecision
-    ? <div className={`text-xs font-medium mt-1 ${reviewColor}`}>● {reviewDecision}</div>
-    : null;
-
   // ── Diamond (decision) ──────────────────────────────────────────────────────
   if (nodeType === 'decision') {
     return (
@@ -76,7 +74,7 @@ export default memo(function ProcessNode({ data, selected }: NodeProps<NodeData>
             left: '50%',
             transform: 'translate(-50%, -50%) rotate(45deg)',
             backgroundColor: 'white',
-            border: `2px solid ${color}`,
+            border: `2px solid ${border}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
           }}
         />
@@ -95,9 +93,8 @@ export default memo(function ProcessNode({ data, selected }: NodeProps<NodeData>
           {typeTag}
           {nameEl}
           {actorEl}
-          {reviewEl}
         </div>
-        <Handles yes />
+        <Handles decision />
       </div>
     );
   }
@@ -107,7 +104,7 @@ export default memo(function ProcessNode({ data, selected }: NodeProps<NodeData>
     return (
       <div
         className={`min-w-[110px] max-w-[170px] border-2 bg-white shadow-md select-none ${selCls}`}
-        style={{ borderColor: color, borderRadius: 9999 }}
+        style={{ borderColor: border, borderRadius: 9999 }}
       >
         <Handles />
         <div className="px-4 py-2 text-center">
@@ -123,14 +120,13 @@ export default memo(function ProcessNode({ data, selected }: NodeProps<NodeData>
     return (
       <div
         className={`min-w-[140px] max-w-[200px] border-2 bg-white shadow-md select-none ${selCls}`}
-        style={{ borderColor: color, borderRadius: '4px 9999px 9999px 4px' }}
+        style={{ borderColor: border, borderRadius: '4px 9999px 9999px 4px' }}
       >
         <Handles />
         <div className="px-3 py-2">
           {typeTag}
           {nameEl}
           {actorEl}
-          {reviewEl}
         </div>
       </div>
     );
@@ -140,14 +136,13 @@ export default memo(function ProcessNode({ data, selected }: NodeProps<NodeData>
   return (
     <div
       className={`min-w-[140px] max-w-[200px] border-2 bg-white rounded-lg shadow-md select-none ${selCls}`}
-      style={{ borderColor: color }}
+      style={{ borderColor: border }}
     >
       <Handles />
       <div className="px-3 pt-2.5 pb-2">
         {typeTag}
         {nameEl}
         {actorEl}
-        {reviewEl}
       </div>
     </div>
   );
