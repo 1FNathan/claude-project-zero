@@ -7,6 +7,11 @@ export interface DataField {
   value: string;
 }
 
+export interface BusinessRule {
+  id: string;   // e.g. "S1.BR1"
+  text: string;
+}
+
 export interface NodeData {
   stepId: string;
   nodeType: NodeType;
@@ -14,7 +19,7 @@ export interface NodeData {
   color: string;
   actor: string;
   actionDescription: string;
-  businessRules: string;
+  businessRules: BusinessRule[];
   timingConstraints: string;
   documentsUsed: string[];
   dataFields: DataField[];
@@ -31,6 +36,8 @@ export interface FlowNode {
   flowId: string;
   positionX: number;
   positionY: number;
+  width?: number | null;
+  height?: number | null;
   data: NodeData;
   createdAt: number;
   updatedAt: number;
@@ -69,6 +76,18 @@ export interface TokenPayload {
   sub: string;
   username: string;
   role: import('./roles.js').Role;
+}
+
+export interface Attachment {
+  id: string;
+  flowId: string;
+  nodeId?: string | null;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  uploadedBy: string;
+  createdAt: number;
 }
 
 export interface FlowEvent {

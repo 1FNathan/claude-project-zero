@@ -4,6 +4,7 @@ import type {
   FlowNode,
   FlowEdge,
   FlowEvent,
+  Attachment,
   CreateFlowInput,
   UpdateFlowInput,
   CreateNodeInput,
@@ -42,6 +43,21 @@ export const flowsApi = {
   deleteEdge: (flowId: string, edgeId: string) => api.delete(`flows/${flowId}/edges/${edgeId}`),
 
   history: (flowId: string) => api.get(`flows/${flowId}/history`).json<FlowEvent[]>(),
+
+  listAttachments: (flowId: string, nodeId?: string) =>
+    api.get(`flows/${flowId}/attachments`, { searchParams: nodeId ? { nodeId } : {} }).json<Attachment[]>(),
+  uploadAttachment: (flowId: string, file: File, nodeId?: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`flows/${flowId}/attachments`, {
+      body: formData,
+      ...(nodeId ? { searchParams: { nodeId } } : {}),
+    }).json<Attachment>();
+  },
+  downloadAttachment: (flowId: string, attachmentId: string) =>
+    api.get(`flows/${flowId}/attachments/${attachmentId}/download`),
+  deleteAttachment: (flowId: string, attachmentId: string) =>
+    api.delete(`flows/${flowId}/attachments/${attachmentId}`),
 
   exportUrl: (flowId: string, format: DocumentFormat, type: DocumentType) =>
     `/api/flows/${flowId}/export?format=${format}&type=${type}`,

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { NodeData, DataField, BusinessRule } from '@process-flow/shared';
 import { useFlowStore } from '../store/flow';
 import { useAuthStore } from '../store/auth';
+import AttachmentsSection from './AttachmentsSection';
 
 function newId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -38,13 +39,18 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
   const canEdit = isBA && isEditable;
   const canReview = isReviewer && isInReview;
 
-  // Derive next actor from outgoing edges — not manually editable
+  // Derive next actor from outgoing edges — saved on submit, not displayed
   const derivedNextActor = rfEdges
     .filter(e => e.source === nodeId)
     .map(e => rfNodes.find(n => n.id === e.target)?.data.actor)
     .filter((a): a is string => Boolean(a))
     .filter((v, i, arr) => arr.indexOf(v) === i)
     .join(', ');
+
+  // Collect unique values across all nodes in this flow for datalist suggestions
+  const allActors = [...new Set(rfNodes.map(n => n.data.actor).filter(Boolean))];
+  const allSystems = [...new Set(rfNodes.flatMap(n => n.data.systemsUsed ?? []).filter(Boolean))];
+  const allDocs = [...new Set(rfNodes.flatMap(n => n.data.documentsUsed ?? []).filter(Boolean))];
 
   const set = (key: keyof NodeData, value: unknown) =>
     setForm(f => ({ ...f, [key]: value }));
@@ -92,16 +98,14 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
   const addRule = () => {
     if (!newRule.trim()) return;
     const rules = form.businessRules ?? [];
-    const brNum = rules.length + 1;
-    const brId = `${node.data.stepId}.BR${brNum}`;
+    const brId = `${node.data.stepId}.BR${rules.length + 1}`;
     set('businessRules', [...rules, { id: brId, text: newRule.trim() }]);
     setNewRule('');
   };
 
   const removeRule = (idx: number) => {
-    const rules = (form.businessRules ?? []).filter((_, i) => i !== idx);
-    // Re-number IDs after removal so they stay sequential
-    const reNumbered: BusinessRule[] = rules.map((r, i) => ({
+    const remaining = (form.businessRules ?? []).filter((_, i) => i !== idx);
+    const reNumbered: BusinessRule[] = remaining.map((r, i) => ({
       ...r,
       id: `${node.data.stepId}.BR${i + 1}`,
     }));
@@ -127,6 +131,7 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
       <div className="p-4 space-y-4 text-sm">
         {canEdit && (
           <>
+            {/* Field order: Label, Actor, Action, Documents, Data Fields, Systems, Timing, Rules, Status, Sub-status */}
             <Field label="Label">
               <input value={form.pithyLabel ?? ''} onChange={e => set('pithyLabel', e.target.value)}
                 className={inputCls} placeholder="Short label" />
@@ -134,72 +139,15 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
 
             <Field label="Actor">
               <input value={form.actor ?? ''} onChange={e => set('actor', e.target.value)}
-                className={inputCls} placeholder="Who performs this step?" />
-            </Field>
-
-            <Field label="Process Status">
-              <input value={form.processStatus ?? ''} onChange={e => set('processStatus', e.target.value)}
-                className={inputCls} placeholder="e.g. In Progress" />
-            </Field>
-
-            <Field label="Process Sub-status">
-              <input value={form.processSubstatus ?? ''} onChange={e => set('processSubstatus', e.target.value)}
-                className={inputCls} placeholder="e.g. Pending Approval" />
+                className={inputCls} placeholder="Who performs this step?" list="actors-list" />
+              <datalist id="actors-list">
+                {allActors.map(a => <option key={a} value={a} />)}
+              </datalist>
             </Field>
 
             <Field label="Action Description">
               <textarea value={form.actionDescription ?? ''} onChange={e => set('actionDescription', e.target.value)}
                 className={`${inputCls} h-20 resize-none`} placeholder="What happens in this step?" />
-            </Field>
-
-            <Field label="Business Rules">
-              <div className="space-y-1 mb-1">
-                {(form.businessRules ?? []).map((br, i) => (
-                  <div key={br.id} className="flex items-start gap-1.5 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1.5">
-                    <span className="text-xs font-mono text-amber-600 shrink-0 mt-0.5 min-w-[48px]">{br.id}</span>
-                    <input
-                      value={br.text}
-                      onChange={e => updateRuleText(i, e.target.value)}
-                      className="text-xs text-gray-700 flex-1 bg-transparent border-none outline-none focus:ring-0 p-0"
-                    />
-                    <button onClick={() => removeRule(i)} className="text-gray-400 hover:text-red-500 shrink-0 text-sm leading-none">×</button>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-1">
-                <input value={newRule} onChange={e => setNewRule(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addRule())}
-                  className={`${inputCls} flex-1`} placeholder="Add business rule..." />
-                <button onClick={addRule} className="px-2 py-1 bg-gray-100 rounded-lg text-xs hover:bg-gray-200">Add</button>
-              </div>
-            </Field>
-
-            <Field label="Timing Constraints">
-              <input value={form.timingConstraints ?? ''} onChange={e => set('timingConstraints', e.target.value)}
-                className={inputCls} placeholder="e.g. Within 24 hours" />
-            </Field>
-
-            <Field label="Next Actor">
-              <div className={`${inputCls} bg-gray-50 text-gray-500 cursor-default`}>
-                {derivedNextActor || <span className="italic text-gray-400">Determined by connected node's actor</span>}
-              </div>
-            </Field>
-
-            <Field label="Systems Used">
-              <div className="flex flex-wrap gap-1 mb-1">
-                {(form.systemsUsed ?? []).map((s, i) => (
-                  <span key={i} className="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
-                    {s}
-                    <button onClick={() => set('systemsUsed', (form.systemsUsed ?? []).filter((_, j) => j !== i))} className="hover:text-red-500">×</button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-1">
-                <input value={newSystem} onChange={e => setNewSystem(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addSystem())}
-                  className={`${inputCls} flex-1`} placeholder="Add system..." />
-                <button onClick={addSystem} className="px-2 py-1 bg-gray-100 rounded-lg text-xs hover:bg-gray-200">Add</button>
-              </div>
             </Field>
 
             <Field label="Documents Used">
@@ -214,7 +162,10 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
               <div className="flex gap-1">
                 <input value={newDoc} onChange={e => setNewDoc(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addDoc())}
-                  className={`${inputCls} flex-1`} placeholder="Add document..." />
+                  className={`${inputCls} flex-1`} placeholder="Add document..." list="docs-list" />
+                <datalist id="docs-list">
+                  {allDocs.map(d => <option key={d} value={d} />)}
+                </datalist>
                 <button onClick={addDoc} className="px-2 py-1 bg-gray-100 rounded-lg text-xs hover:bg-gray-200">Add</button>
               </div>
             </Field>
@@ -243,6 +194,63 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
               <button onClick={addDataField} className="text-xs text-indigo-600 hover:underline">+ Add data field</button>
             </Field>
 
+            <Field label="Systems Used">
+              <div className="flex flex-wrap gap-1 mb-1">
+                {(form.systemsUsed ?? []).map((s, i) => (
+                  <span key={i} className="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                    {s}
+                    <button onClick={() => set('systemsUsed', (form.systemsUsed ?? []).filter((_, j) => j !== i))} className="hover:text-red-500">×</button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-1">
+                <input value={newSystem} onChange={e => setNewSystem(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addSystem())}
+                  className={`${inputCls} flex-1`} placeholder="Add system..." list="systems-list" />
+                <datalist id="systems-list">
+                  {allSystems.map(s => <option key={s} value={s} />)}
+                </datalist>
+                <button onClick={addSystem} className="px-2 py-1 bg-gray-100 rounded-lg text-xs hover:bg-gray-200">Add</button>
+              </div>
+            </Field>
+
+            <Field label="Timing Constraints">
+              <input value={form.timingConstraints ?? ''} onChange={e => set('timingConstraints', e.target.value)}
+                className={inputCls} placeholder="e.g. Within 24 hours" />
+            </Field>
+
+            <Field label="Business Rules">
+              <div className="space-y-1 mb-1">
+                {(form.businessRules ?? []).map((br, i) => (
+                  <div key={br.id} className="flex items-start gap-1.5 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1.5">
+                    <span className="text-xs font-mono text-amber-600 shrink-0 mt-0.5 min-w-[52px]">{br.id}</span>
+                    <input
+                      value={br.text}
+                      onChange={e => updateRuleText(i, e.target.value)}
+                      className="text-xs text-gray-700 flex-1 bg-transparent border-none outline-none focus:ring-0 p-0"
+                    />
+                    <button onClick={() => removeRule(i)} className="text-gray-400 hover:text-red-500 shrink-0 text-sm leading-none">×</button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-1">
+                <input value={newRule} onChange={e => setNewRule(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addRule())}
+                  className={`${inputCls} flex-1`} placeholder="Add business rule..." />
+                <button onClick={addRule} className="px-2 py-1 bg-gray-100 rounded-lg text-xs hover:bg-gray-200">Add</button>
+              </div>
+            </Field>
+
+            <Field label="Process Status">
+              <input value={form.processStatus ?? ''} onChange={e => set('processStatus', e.target.value)}
+                className={inputCls} placeholder="e.g. In Progress" />
+            </Field>
+
+            <Field label="Process Sub-status">
+              <input value={form.processSubstatus ?? ''} onChange={e => set('processSubstatus', e.target.value)}
+                className={inputCls} placeholder="e.g. Pending Approval" />
+            </Field>
+
             <button
               onClick={handleSave}
               disabled={saving}
@@ -250,21 +258,24 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
+
+            <div className="pt-2 border-t border-gray-100">
+              <AttachmentsSection flowId={flowId} nodeId={nodeId} />
+            </div>
           </>
         )}
 
         {!canEdit && (
           <div className="space-y-3 text-gray-700">
             {[
-              ['Label',            node.data.pithyLabel],
-              ['Actor',            node.data.actor],
-              ['Process Status',   node.data.processStatus],
+              ['Label',              node.data.pithyLabel],
+              ['Actor',              node.data.actor],
+              ['Action',             node.data.actionDescription],
+              ['Process Status',     node.data.processStatus],
               ['Process Sub-status', node.data.processSubstatus],
-              ['Action',           node.data.actionDescription],
-              ['Timing',           node.data.timingConstraints],
-              ['Next Actor',       node.data.nextActor || derivedNextActor],
-              ['Systems',          node.data.systemsUsed?.join(', ')],
-              ['Documents',        node.data.documentsUsed?.join(', ')],
+              ['Timing',             node.data.timingConstraints],
+              ['Systems',            node.data.systemsUsed?.join(', ')],
+              ['Documents',          node.data.documentsUsed?.join(', ')],
             ].map(([label, value]) => value ? (
               <div key={label as string}>
                 <p className="text-xs font-medium text-gray-400">{label}</p>
@@ -300,6 +311,10 @@ export default function NodeDetailPanel({ flowId, nodeId, onClose }: Props) {
                 </div>
               </div>
             )}
+
+            <div className="pt-2 border-t border-gray-100">
+              <AttachmentsSection flowId={flowId} nodeId={nodeId} />
+            </div>
           </div>
         )}
 

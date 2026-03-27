@@ -23,6 +23,7 @@ import ProcessNode from '../components/ProcessNode';
 import NodePalette from '../components/NodePalette';
 import NodeDetailPanel from '../components/NodeDetailPanel';
 import FlowHistory from '../components/FlowHistory';
+import AttachmentsSection from '../components/AttachmentsSection';
 
 const nodeTypes: NodeTypes = { processNode: ProcessNode };
 
@@ -63,6 +64,7 @@ export default function FlowEditorPage() {
   const [reviewComment, setReviewComment] = useState('');
   const [showExport, setShowExport] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showAttachments, setShowAttachments] = useState(false);
 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
@@ -206,6 +208,18 @@ export default function FlowEditorPage() {
         </span>
 
         <div className="flex items-center gap-2">
+          {/* Attachments */}
+          <button
+            onClick={() => setShowAttachments(v => !v)}
+            className={`text-sm border rounded-lg px-3 py-1.5 ${
+              showAttachments
+                ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                : 'text-gray-600 border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            Attachments
+          </button>
+
           {/* History */}
           <button
             onClick={() => setShowHistory(v => !v)}
@@ -317,6 +331,19 @@ export default function FlowEditorPage() {
             nodeId={selectedNodeId}
             onClose={() => setSelectedNode(null)}
           />
+        )}
+
+        {/* Flow-level attachments panel */}
+        {showAttachments && (
+          <div className="w-72 bg-white border-l border-gray-200 flex flex-col shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <p className="font-semibold text-gray-800 text-sm">Flow Attachments</p>
+              <button onClick={() => setShowAttachments(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+            </div>
+            <div className="p-4">
+              <AttachmentsSection flowId={flow.id} />
+            </div>
+          </div>
         )}
 
         {/* History panel */}

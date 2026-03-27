@@ -6,6 +6,7 @@ import { flowsRouter } from './routes/flows.js';
 import { nodesRouter } from './routes/nodes.js';
 import { edgesRouter } from './routes/edges.js';
 import { exportRouter } from './routes/export.js';
+import { attachmentsRouter } from './routes/attachments.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -18,6 +19,7 @@ app.use(express.json());
 app.use('/api/flows/:flowId/nodes', nodesRouter);
 app.use('/api/flows/:flowId/edges', edgesRouter);
 app.use('/api/flows/:flowId/export', exportRouter);
+app.use('/api/flows/:flowId/attachments', attachmentsRouter);
 app.use('/api/flows', flowsRouter);
 app.use('/api/auth', authRouter);
 

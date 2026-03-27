@@ -39,7 +39,7 @@ export const flowNodes = sqliteTable('flow_nodes', {
   color: text('color').notNull().default('#6366f1'),
   actor: text('actor').notNull().default(''),
   actionDescription: text('action_description').notNull().default(''),
-  businessRules: text('business_rules').notNull().default(''),
+  businessRules: text('business_rules').notNull().default('[]'),
   timingConstraints: text('timing_constraints').notNull().default(''),
   documentsUsed: text('documents_used').notNull().default('[]'),
   dataFields: text('data_fields').notNull().default('[]'),
@@ -47,6 +47,8 @@ export const flowNodes = sqliteTable('flow_nodes', {
   processStatus: text('process_status').notNull().default(''),
   processSubstatus: text('process_substatus').notNull().default(''),
   nextActor: text('next_actor').notNull().default(''),
+  width: real('width'),
+  height: real('height'),
   reviewDecision: text('review_decision', {
     enum: ['approved', 'rejected', 'comment'],
   }),
@@ -65,6 +67,18 @@ export const flowEdges = sqliteTable('flow_edges', {
   label: text('label'),
   sourceHandle: text('source_handle'),
   targetHandle: text('target_handle'),
+  createdAt: integer('created_at').notNull(),
+});
+
+export const attachments = sqliteTable('attachments', {
+  id: text('id').primaryKey(),
+  flowId: text('flow_id').notNull().references(() => flows.id, { onDelete: 'cascade' }),
+  nodeId: text('node_id').references(() => flowNodes.id, { onDelete: 'cascade' }),
+  filename: text('filename').notNull(),
+  originalName: text('original_name').notNull(),
+  mimeType: text('mime_type').notNull(),
+  size: integer('size').notNull(),
+  uploadedBy: text('uploaded_by').notNull(),
   createdAt: integer('created_at').notNull(),
 });
 

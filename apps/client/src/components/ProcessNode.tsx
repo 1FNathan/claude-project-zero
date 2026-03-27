@@ -4,7 +4,7 @@ import { NodeResizer } from '@reactflow/node-resizer';
 import type { NodeData } from '@process-flow/shared';
 import { useFlowStore } from '../store/flow';
 
-// Diamond: 150×150 default container, inner square = 150/√2 ≈ 106 rotated 45°
+// Diamond default size; inner square = DIAMOND/√2 ≈ 106 rotated 45°
 const DIAMOND = 150;
 
 const hCls = '!w-3 !h-3 !bg-gray-300 !border-gray-400 !border-2';
@@ -22,13 +22,18 @@ function Handles({ decision = false }: { decision?: boolean }) {
   );
 }
 
-/** Border color driven by review decision when set, otherwise the node's own color (default grey). */
 function effectiveBorder(data: NodeData): string {
   if (data.reviewDecision === 'approved') return '#10b981';
   if (data.reviewDecision === 'rejected') return '#ef4444';
   if (data.reviewDecision === 'comment')  return '#f59e0b';
   return data.color || '#9ca3af';
 }
+
+const StepId = ({ id, style: s = {} }: { id: string; style?: React.CSSProperties }) => (
+  <span style={{ position: 'absolute', top: 4, left: 7, fontSize: 9, fontFamily: 'monospace', color: '#9ca3af', lineHeight: 1, ...s }}>
+    {id}
+  </span>
+);
 
 export default memo(function ProcessNode({ id, data, selected, style }: NodeProps<NodeData>) {
   const { nodeType, pithyLabel, stepId, actor } = data;
@@ -76,20 +81,15 @@ export default memo(function ProcessNode({ id, data, selected, style }: NodeProp
             boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
           }}
         />
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            textAlign: 'center',
-            padding: '0 28px',
-          }}
-        >
-          {nameEl}
-          {actorEl}
+        <div style={{ position: 'absolute', inset: 0 }}>
+          <StepId id={stepId} />
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            justifyContent: 'center', height: '100%', textAlign: 'center', padding: '0 28px',
+          }}>
+            {nameEl}
+            {actorEl}
+          </div>
         </div>
         <Handles decision />
       </div>
@@ -100,17 +100,13 @@ export default memo(function ProcessNode({ id, data, selected, style }: NodeProp
   if (nodeType === 'start' || nodeType === 'end') {
     return (
       <div
-        className={`min-w-[110px] border-2 bg-white shadow-md select-none ${selCls}`}
-        style={{
-          borderColor: border,
-          borderRadius: 9999,
-          ...(style?.width ? { width: style.width } : {}),
-          ...(style?.height ? { height: style.height } : {}),
-        }}
+        className={`relative min-w-[110px] border-2 bg-white shadow-md select-none ${selCls}`}
+        style={{ ...style, borderColor: border, borderRadius: 9999 }}
       >
         <NodeResizer minWidth={110} minHeight={40} isVisible={selected} onResizeEnd={handleResizeEnd} />
         <Handles />
-        <div className="px-4 py-2 text-center">
+        <StepId id={stepId} />
+        <div className="px-4 pt-4 pb-2 text-center">
           {nameEl}
         </div>
       </div>
@@ -121,17 +117,13 @@ export default memo(function ProcessNode({ id, data, selected, style }: NodeProp
   if (nodeType === 'delay') {
     return (
       <div
-        className={`min-w-[140px] border-2 bg-white shadow-md select-none ${selCls}`}
-        style={{
-          borderColor: border,
-          borderRadius: '4px 9999px 9999px 4px',
-          ...(style?.width ? { width: style.width } : {}),
-          ...(style?.height ? { height: style.height } : {}),
-        }}
+        className={`relative min-w-[140px] border-2 bg-white shadow-md select-none ${selCls}`}
+        style={{ ...style, borderColor: border, borderRadius: '4px 9999px 9999px 4px' }}
       >
         <NodeResizer minWidth={120} minHeight={40} isVisible={selected} onResizeEnd={handleResizeEnd} />
         <Handles />
-        <div className="px-3 py-2">
+        <StepId id={stepId} />
+        <div className="px-3 pt-4 pb-2">
           {nameEl}
           {actorEl}
         </div>
@@ -142,16 +134,13 @@ export default memo(function ProcessNode({ id, data, selected, style }: NodeProp
   // ── Rectangle (process) ─────────────────────────────────────────────────────
   return (
     <div
-      className={`min-w-[140px] border-2 bg-white rounded-lg shadow-md select-none ${selCls}`}
-      style={{
-        borderColor: border,
-        ...(style?.width ? { width: style.width } : {}),
-        ...(style?.height ? { height: style.height } : {}),
-      }}
+      className={`relative min-w-[140px] border-2 bg-white rounded-lg shadow-md select-none ${selCls}`}
+      style={{ ...style, borderColor: border }}
     >
       <NodeResizer minWidth={120} minHeight={50} isVisible={selected} onResizeEnd={handleResizeEnd} />
       <Handles />
-      <div className="px-3 pt-2.5 pb-2">
+      <StepId id={stepId} />
+      <div className="px-3 pt-4 pb-2">
         {nameEl}
         {actorEl}
       </div>
