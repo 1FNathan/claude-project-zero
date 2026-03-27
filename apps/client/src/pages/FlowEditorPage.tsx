@@ -82,7 +82,9 @@ export default function FlowEditorPage() {
       const byId = new Map(current.map(n => [n.id, n]));
       return rfNodes.map(n => {
         const existing = byId.get(n.id);
-        return existing ? { ...n, position: existing.position, style: existing.style } : n;
+        return existing
+          ? { ...n, position: existing.position, style: existing.style, width: existing.width, height: existing.height }
+          : n;
       });
     });
   }, [rfNodes]);

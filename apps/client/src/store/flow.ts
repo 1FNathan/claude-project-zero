@@ -9,7 +9,8 @@ function toRFNode(node: FlowNode): RFNode<NodeData> {
     type: 'processNode',
     position: { x: node.positionX, y: node.positionY },
     data: node.data,
-    ...(node.width && node.height ? { style: { width: node.width, height: node.height } } : {}),
+    ...(node.width ? { width: node.width } : {}),
+    ...(node.height ? { height: node.height } : {}),
   };
 }
 
