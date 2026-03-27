@@ -52,7 +52,7 @@ interface FlowState {
   addNode: (flowId: string, nodeType: NodeType, position: { x: number; y: number }) => Promise<void>;
   updateNode: (flowId: string, nodeId: string, data: Partial<NodeData>) => Promise<void>;
   updatePositions: (flowId: string, positions: Array<{ id: string; positionX: number; positionY: number }>) => Promise<void>;
-  updateNodeDimensions: (flowId: string, nodeId: string, width: number, height: number) => Promise<void>;
+  updateNodeDimensions: (flowId: string, nodeId: string, x: number, y: number, width: number, height: number) => Promise<void>;
   deleteNode: (flowId: string, nodeId: string) => Promise<void>;
   addEdge: (flowId: string, connection: { source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null }) => Promise<void>;
   deleteEdge: (flowId: string, edgeId: string) => Promise<void>;
@@ -114,16 +114,8 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     await flowsApi.updatePositions(flowId, positions);
   },
 
-  updateNodeDimensions: async (flowId, nodeId, width, height) => {
-    const node = get().rfNodes.find(n => n.id === nodeId);
-    if (!node) return;
-    await flowsApi.updatePositions(flowId, [{
-      id: nodeId,
-      positionX: node.position.x,
-      positionY: node.position.y,
-      width,
-      height,
-    }]);
+  updateNodeDimensions: async (flowId, nodeId, x, y, width, height) => {
+    await flowsApi.updatePositions(flowId, [{ id: nodeId, positionX: x, positionY: y, width, height }]);
   },
 
   deleteNode: async (flowId, nodeId) => {

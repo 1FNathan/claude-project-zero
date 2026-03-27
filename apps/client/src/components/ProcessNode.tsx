@@ -38,8 +38,8 @@ export default memo(function ProcessNode({ id, data, selected }: NodeProps<NodeD
   const { flow, updateNodeDimensions } = useFlowStore();
 
   const handleResizeEnd = useCallback(
-    (_: unknown, params: { width: number; height: number }) => {
-      if (flow?.id) updateNodeDimensions(flow.id, id, params.width, params.height);
+    (_: unknown, params: { x: number; y: number; width: number; height: number }) => {
+      if (flow?.id) updateNodeDimensions(flow.id, id, params.x, params.y, params.width, params.height);
     },
     [flow?.id, id, updateNodeDimensions]
   );
