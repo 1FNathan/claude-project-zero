@@ -115,6 +115,12 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   },
 
   updateNodeDimensions: async (flowId, nodeId, x, y, width, height) => {
+    // Update store immediately so the sync effect never reverts the node to the pre-resize position
+    set(s => ({
+      rfNodes: s.rfNodes.map(n =>
+        n.id === nodeId ? { ...n, position: { x, y }, width, height } : n
+      ),
+    }));
     await flowsApi.updatePositions(flowId, [{ id: nodeId, positionX: x, positionY: y, width, height }]);
   },
 
